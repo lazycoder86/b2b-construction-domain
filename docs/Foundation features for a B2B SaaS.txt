@@ -1,0 +1,265 @@
+**Foundation features for a B2B SaaS MVP template**
+
+A reusable B2B SaaS template should focus on the shared “platform” layer that every multi-tenant product needs (organizations, identity, access, billing, collaboration, and observability) while keeping the domain-specific core workflow pluggable. This lets you spin up different B2B products (CRM, project tools, invoicing, compliance, vertical SaaS, etc.) on the same base.
+
+### 1. Multi-Tenancy & Organization Management (Non-negotiable)
+- Organizations (tenants/workspaces) as the primary customer unit.
+- Strong data isolation: every business record carries a `tenant_id` / `organization_id`; queries are always scoped. Shared schema + row-level security (PostgreSQL RLS) is the practical default for most MVPs; add schema- or DB-per-tenant later only for high-compliance customers.
+- Organization creation during or right after signup.
+- Organization switcher (users can belong to multiple orgs).
+- Basic organization settings (name, logo optional later, domain restrictions).
+- Tenant lifecycle: provisioning, suspension, deletion (with data export/export before hard delete).
+
+### 2. Authentication & Identity
+- Email/password + magic links or passwordless as baseline.
+- Social/OAuth (Google Workspace, Microsoft, etc.) for easy onboarding.
+- Session management, password reset, email verification.
+- Multi-factor authentication (MFA/2FA) — at least optional/enforced by org admin.
+- Later (but plan for it): SSO (SAML 2.0 / OIDC) via Auth0, WorkOS, Clerk, or similar; SCIM for automated provisioning/deprovisioning. Enterprise buyers often require this.
+
+### 3. Authorization & Role-Based Access Control (RBAC)
+- Minimum roles: Owner, Admin, Member (sometimes Viewer).
+- Permissions checked server-side on every request.
+- Invite-by-email flow with role assignment; pending invites management (resend/cancel).
+- Member removal and role changes.
+- Seat limits tied to the subscription plan.
+- Extensible later to custom roles or attribute-based access.
+
+### 4. Billing & Subscription Management
+- Organization-level billing (the org pays, not individual users).
+- Integration with Stripe (Billing + Customer Portal is the standard starting point).
+- Plans: free/trial + one or more paid tiers; support monthly/annual.
+- Subscription lifecycle: create, upgrade/downgrade, cancel, payment failure handling, dunning.
+- Basic usage metering placeholder (record counts, seats, or credits) so you can add usage-based pricing later without a rewrite.
+- Invoices and payment history visible to owners/admins.
+- Entitlements layer: map plan → features/limits so the rest of the app can check “can this org do X?” in one place.
+
+### 5. User & Team Collaboration Basics
+- Team invitations and acceptance.
+- Basic notifications (email at minimum for invites, assignments, mentions; in-app later).
+- Activity feed or simple audit log of important actions (who did what, when) — valuable for trust and compliance.
+
+### 6. Onboarding & Activation
+- Guided flow: signup → create/join organization → invite teammates (optional) → reach first value (the core workflow).
+- Empty states, checklists, or product tours that point to the primary action.
+- Event tracking focused on activation (did the user complete the key job-to-be-done?).
+
+### 7. Core Dashboard & Basic Analytics
+- Organization dashboard showing the most important metrics for the domain (counts, status summaries, recent activity).
+- Simple filtering, search, and sorting on main lists.
+- Product analytics (PostHog, Mixpanel, or Amplitude) to measure activation, retention, and feature usage.
+- Export of key data (CSV at minimum).
+
+### 8. Admin & Internal Tools
+- Super-admin / internal panel: search organizations and users, view subscription status, change plans, impersonate (with audit trail), toggle feature flags, basic support actions.
+- Feature flags (even a simple DB-backed or LaunchDarkly-style system) so you can roll out changes safely.
+
+### 9. Security, Reliability & Operational Foundations
+- HTTPS everywhere, rate limiting, basic CSRF/XSS protections.
+- Error tracking and alerting (Sentry or equivalent).
+- Backups, monitoring, and basic uptime checks.
+- Audit logging of sensitive actions (logins, permission changes, data exports, billing events).
+- GDPR-friendly basics (data export, account deletion request handling).
+
+### 10. Integration-Ready Hooks (Lightweight in MVP)
+- Webhooks or event bus for key domain events (so future integrations are easier).
+- Public REST/GraphQL API with API keys (scoped per organization) — often deferred past first customers but design the auth/authorization layer so it can be added cleanly.
+- CSV import with validation for initial data migration.
+
+### What to Keep Out of the First MVP (or Make Optional)
+- Full enterprise SSO/SCIM (add when first enterprise deal requires it).
+- Highly granular custom RBAC or complex workflow builders.
+- Native mobile apps (responsive web is enough).
+- Advanced reporting/BI, white-labeling, multi-language, marketplace of integrations.
+- Heavy automation or AI features unless they are the core value.
+
+### Suggested High-Level Architecture for the Template
+- **Frontend**: Next.js (App Router) + Tailwind + shadcn/ui (or your preferred stack).
+- **Backend**: NestJS / Node, Laravel, Symfony, or similar modular framework; enforce tenant context in middleware/guards.
+- **Database**: PostgreSQL with `organization_id` on all tenant tables + RLS policies.
+- **Auth**: Clerk, Auth0, Supabase Auth, or custom with a solid library — prefer one that natively supports organizations.
+- **Billing**: Stripe Billing + Customer Portal.
+- **Email**: Resend, Postmark, or SES for transactional mail.
+- **Observability**: Sentry + PostHog (or equivalent).
+
+### Recommended MVP Priority Order
+1. Auth + organization creation + basic RBAC + invites.  
+2. Tenant-scoped data access for the core domain objects.  
+3. One complete core workflow that delivers the primary value.  
+4. Stripe subscription (even a single paid plan + trial).  
+5. Simple dashboard + CSV export.  
+6. Internal admin tools + event tracking.  
+7. Email notifications and basic audit log.
+
+This foundation is intentionally domain-agnostic so you can drop in different core entities and workflows (projects + tasks, invoices + payments, contracts + alerts, leads + pipeline, etc.) while reusing the same tenancy, identity, billing, and collaboration layer.
+
+Would you like me to expand this into a more detailed feature matrix (Must/Should/Could), a suggested database schema for the shared entities, a phased roadmap, or tech-stack recommendations tailored to a specific language/framework you prefer? Also tell me the first concrete B2B domain or workflow you want to build on top of this template so I can show how the core features plug in.
+
+**Expanded B2B SaaS MVP Template Plan**
+
+This expands the earlier outline into a practical, reusable foundation you can template for different B2B products. The shared platform layer (tenancy, identity, access, billing, collaboration, observability) stays stable; the domain-specific core workflow is the pluggable part.
+
+### 1. Detailed Feature Matrix (MoSCoW for MVP)
+
+| Category | Must Have (MVP) | Should Have (near-term) | Could Have (later) | Won’t Have (now) |
+|----------|-----------------|-------------------------|--------------------|------------------|
+| **Multi-tenancy** | Organizations as tenants; `organization_id` on all business records; query scoping; org creation + switcher | Soft delete / suspension; basic org settings; member limits | Custom domains / branding; data residency options; schema- or DB-per-tenant for enterprise | Full white-label marketplace |
+| **Auth** | Email/password or magic links; email verification; password reset; sessions | OAuth (Google/Microsoft); optional MFA | SSO (SAML/OIDC) via WorkOS/Auth0/Clerk; SCIM | Custom enterprise IdP from scratch |
+| **RBAC & Teams** | Roles: Owner / Admin / Member; invite-by-email; pending invites; remove members; server-side checks | Seat limits tied to plan; ownership transfer | Custom roles; resource-level permissions; teams/groups inside org | Complex ABAC or external policy engine |
+| **Billing** | Org-level Stripe Customer + Subscription; Checkout + Customer Portal; free/trial + paid plan; payment failure handling | Multiple plans; annual billing; basic seat metering | Usage-based / credits; invoicing for contracts; tax automation | Full in-house billing engine |
+| **Core Workflow** | One primary object + full CRUD + status/assignment/comments (domain-specific) | Filters, search, pagination, CSV import/export | Workflow automation, bulk actions, advanced reporting | Multi-workflow builders |
+| **Onboarding & UX** | Signup → create org → first-value path; empty states | Guided checklist / product tour | In-app messaging, personalization | Full mobile apps |
+| **Notifications** | Transactional email (invites, assignments, mentions) | In-app notifications | Webhooks for external systems | SMS/push as default |
+| **Admin & Ops** | Internal admin: org/user lookup, plan override, basic impersonation (audited) | Feature flags; simple audit log viewer | Full support tooling, analytics dashboards | Custom BI suite |
+| **Observability & Security** | Error tracking (Sentry); basic event tracking (activation); HTTPS, rate limits, backups | Audit log of key actions; uptime monitoring | SOC 2 readiness, advanced compliance exports | Full SIEM / custom security stack |
+| **Integrations** | CSV import/export | Webhooks for core events | Public API + API keys; Zapier/n8n | Marketplace of third-party apps |
+
+**Goal of the MVP**: A real user (or small team) can complete the primary job-to-be-done end-to-end, invite a teammate, and pay (or start a trial) without manual workarounds.
+
+### 2. Suggested Core Database Schema (Shared Layer)
+
+Use PostgreSQL. Shared schema + `organization_id` + Row-Level Security (RLS) is the recommended starting point for most products.
+
+```sql
+-- Global users (shared pool — one account can belong to many orgs)
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) UNIQUE NOT NULL,
+  name VARCHAR(255),
+  password_hash TEXT, -- or null if passwordless / external
+  email_verified_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Tenants
+CREATE TABLE organizations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(255) NOT NULL,
+  slug VARCHAR(100) UNIQUE NOT NULL, -- for URLs / switcher
+  status VARCHAR(50) DEFAULT 'active', -- active, suspended, deleted
+  stripe_customer_id VARCHAR(255),
+  plan VARCHAR(50) DEFAULT 'free',
+  max_seats INTEGER DEFAULT 5,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Membership (user ↔ org + role)
+CREATE TABLE organization_memberships (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role VARCHAR(50) NOT NULL DEFAULT 'member', -- owner, admin, member
+  status VARCHAR(50) DEFAULT 'active',
+  invited_by UUID REFERENCES users(id),
+  joined_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(organization_id, user_id)
+);
+
+-- Invitations (before user exists or accepts)
+CREATE TABLE invitations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  email VARCHAR(255) NOT NULL,
+  role VARCHAR(50) NOT NULL DEFAULT 'member',
+  token VARCHAR(255) UNIQUE NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  invited_by UUID REFERENCES users(id),
+  accepted_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Optional: more flexible roles later
+CREATE TABLE roles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID REFERENCES organizations(id), -- NULL = system role
+  name VARCHAR(100) NOT NULL,
+  permissions JSONB -- or separate junction table
+);
+
+-- Billing mirror (Stripe is source of truth; this is for quick lookups)
+CREATE TABLE subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id),
+  stripe_subscription_id VARCHAR(255) UNIQUE,
+  status VARCHAR(50), -- active, trialing, past_due, canceled
+  plan VARCHAR(50),
+  current_period_end TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Audit log (important early)
+CREATE TABLE audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID REFERENCES organizations(id),
+  user_id UUID REFERENCES users(id),
+  action VARCHAR(100) NOT NULL, -- e.g. 'member.invited', 'billing.updated'
+  resource_type VARCHAR(100),
+  resource_id UUID,
+  metadata JSONB,
+  ip_address INET,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Example domain table (every business table follows this pattern)
+CREATE TABLE projects (  -- replace with your primary object
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  status VARCHAR(50) DEFAULT 'active',
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX idx_memberships_user ON organization_memberships(user_id);
+CREATE INDEX idx_memberships_org ON organization_memberships(organization_id);
+CREATE INDEX idx_projects_org ON projects(organization_id);
+-- + RLS policies that force organization_id = current_setting('app.current_org_id')
+```
+
+**Tenant resolution pattern**: Authenticate user → resolve active organization (from session, subdomain, or path) → verify membership → set tenant context (middleware/guard) → every query/repository automatically filters by `organization_id`.
+
+### 3. Phased Roadmap (Template Timeline)
+
+**Phase 0 – Scoping (1 week)**  
+Define the single primary workflow and success metric (e.g., “user creates first X and invites a teammate”). Lock Must-have list. Choose auth and billing providers.
+
+**Phase 1 – Foundation (Weeks 1–3)**  
+- Auth (signup/login/reset)  
+- Organizations + memberships + invites + basic RBAC  
+- Tenant isolation middleware + RLS  
+- Empty app shell + org switcher  
+
+**Phase 2 – Core Value (Weeks 3–5)**  
+- Primary domain object CRUD + statuses/assignments/comments  
+- Basic dashboard / list views  
+- CSV import/export  
+
+**Phase 3 – Commercial (Weeks 5–7)**  
+- Stripe Checkout + Customer Portal + webhooks  
+- Plan entitlements (feature/limit checks)  
+- Transactional emails  
+
+**Phase 4 – Launch Readiness (Weeks 7–8/10)**  
+- Onboarding flow + empty states  
+- Event tracking (activation funnel)  
+- Internal admin tools  
+- Error tracking, backups, basic audit log  
+- Staging + production deploy  
+
+**Post-MVP (after first paying customers)**  
+SSO, advanced roles, public API, usage metering, better reporting, integrations, mobile polish.
+
+Realistic timeline for a focused B2B team SaaS: **6–10 weeks** depending on the complexity of the core workflow and team size.
+
+### 4. Key Architectural Principles for the Template
+
+- **Tenant context is mandatory** — resolve it once per request and never allow unscoped queries.
+- **Entitlements service** — single place that answers “can this org use feature X / has it hit limit Y?” based on subscription.
+- **Events over tight coupling** — emit domain events (member invited, project created, subscription changed) so notifications, analytics, and future webhooks stay decoupled.
+- **Impersonation with audit** — support needs it; log every session.
+- **Design for Stripe as source of truth** — local tables are caches; webhooks keep them in sync.
+
